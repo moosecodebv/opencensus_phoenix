@@ -24,28 +24,6 @@ defmodule OpencensusPhoenix.Telemetry do
     end)
   end
 
-  def handle_event([:phoenix, :router_dispatch, :start], measurements, meta, _prefix) do
-    route_info =
-      case meta do
-        %{plug: Phoenix.LiveView.Plug, phoenix_live_view: {module, action}} ->
-          "Elixir." <> view = to_string(module)
-          %{module: view, action: action, view: view, root_view: view}
-
-        %{plug: module, plug_opts: action} ->
-          "Elixir." <> module = to_string(module)
-          %{module: module, action: action}
-      end
-
-    :ocp.with_child_span("request.#{route_info.module}.#{route_info.action}")
-
-    :ocp.put_attributes(
-      Map.merge(route_info, %{
-        http_method: meta.conn.method,
-        route: meta.route
-      })
-    )
-  end
-
   def handle_event([:phoenix, :live_view, :mount, :start], measurements, meta, _prefix) do
     "Elixir." <> view = to_string(meta.socket.view)
     "Elixir." <> root_view = to_string(meta.socket.root_view)
@@ -99,6 +77,28 @@ defmodule OpencensusPhoenix.Telemetry do
 
   def handle_event([:phoenix, :live_component, :handle_event, :stop], meas, meta, _prefix) do
     :ocp.finish_span()
+  end
+
+  def handle_event([:phoenix, :router_dispatch, :start], measurements, meta, _prefix) do
+    route_info =
+      case meta do
+        %{plug: Phoenix.LiveView.Plug, phoenix_live_view: {module, action}} ->
+          "Elixir." <> view = to_string(module)
+          %{module: view, action: action, view: view, root_view: view}
+
+        %{plug: module, plug_opts: action} ->
+          "Elixir." <> module = to_string(module)
+          %{module: module, action: action}
+      end
+
+    :ocp.with_child_span("request.#{route_info.module}.#{route_info.action}")
+
+    :ocp.put_attributes(
+      Map.merge(route_info, %{
+        http_method: meta.conn.method,
+        route: meta.route
+      })
+    )
   end
 
   def handle_event(event, measurements, meta, prefix) do
