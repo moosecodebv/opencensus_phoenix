@@ -92,7 +92,15 @@ defmodule OpencensusPhoenix.Telemetry do
       end
 
     IO.inspect(route_info, label: "ROUTE_INFO")
-    :ocp.with_child_span("request.#{route_info.module}.#{route_info.action}")
+
+    action =
+      case route_info.action do
+        [schema: schema, json_codec: _] -> schema
+        action when is_binary(action) -> action
+        action -> inspect(action)
+      end
+
+    :ocp.with_child_span("request.#{route_info.module}.#{action}")
 
     :ocp.put_attributes(
       Map.merge(route_info, %{
