@@ -8,10 +8,12 @@ defmodule OpencensusPhoenix.Telemetry do
   Add `#{__MODULE__}.setup([:my_app, :endpoint])` somewhere when your application is starting up.
   """
 
-  def setup(prefix) do
+  def setup() do
     %{
-      "phoenix endpoint stop" => prefix ++ [:stop],
       "phoenix router_dispatch start" => [:phoenix, :router_dispatch, :start],
+      "phoenix router_dispatch stop" => [:phoenix, :router_dispatch, :stop],
+      "phoenix router_dispatch exception" => [:phoenix, :router_dispatch, :exception],
+      "phoenix router_dispatch exception" => [:phoenix, :router_dispatch, :failure],
       "phoenix live view mount start" => [:phoenix, :live_view, :mount, :start],
       "phoenix live view mount stop" => [:phoenix, :live_view, :mount, :stop],
       "phoenix live view handle_event start" => [:phoenix, :live_view, :handle_event, :start],
@@ -20,11 +22,11 @@ defmodule OpencensusPhoenix.Telemetry do
       "phoenix live comp handle_event stop" => [:phoenix, :live_component, :handle_event, :stop]
     }
     |> Enum.each(fn {name, event} ->
-      :ok = :telemetry.attach(name, event, &handle_event/4, prefix)
+      :ok = :telemetry.attach(name, event, &handle_event/4, nil)
     end)
   end
 
-  def handle_event([:phoenix, :live_view, :mount, :start], measurements, meta, _prefix) do
+  def handle_event([:phoenix, :live_view, :mount, :start], measurements, meta, _) do
     "Elixir." <> view = to_string(meta.socket.view)
     "Elixir." <> root_view = to_string(meta.socket.root_view)
 
@@ -39,11 +41,11 @@ defmodule OpencensusPhoenix.Telemetry do
     )
   end
 
-  def handle_event([:phoenix, :live_view, :mount, :stop], measurements, meta, _prefix) do
+  def handle_event([:phoenix, :live_view, :mount, :stop], measurements, meta, _) do
     :ocp.finish_span()
   end
 
-  def handle_event([:phoenix, :live_view, :handle_event, :start], measurements, meta, _prefix) do
+  def handle_event([:phoenix, :live_view, :handle_event, :start], measurements, meta, _) do
     "Elixir." <> view = to_string(meta.socket.view)
     "Elixir." <> root_view = to_string(meta.socket.root_view)
     :ocp.with_child_span("live_view.#{view}.handle_event.#{meta.event}")
@@ -56,11 +58,11 @@ defmodule OpencensusPhoenix.Telemetry do
     })
   end
 
-  def handle_event([:phoenix, :live_view, :handle_event, :stop], measurements, meta, _prefix) do
+  def handle_event([:phoenix, :live_view, :handle_event, :stop], measurements, meta, _) do
     :ocp.finish_span()
   end
 
-  def handle_event([:phoenix, :live_component, :handle_event, :start], meas, meta, _prefix) do
+  def handle_event([:phoenix, :live_component, :handle_event, :start], meas, meta, _) do
     "Elixir." <> component = to_string(meta.component)
     "Elixir." <> view = to_string(meta.socket.view)
     "Elixir." <> root_view = to_string(meta.socket.root_view)
@@ -75,11 +77,11 @@ defmodule OpencensusPhoenix.Telemetry do
     })
   end
 
-  def handle_event([:phoenix, :live_component, :handle_event, :stop], meas, meta, _prefix) do
+  def handle_event([:phoenix, :live_component, :handle_event, :stop], meas, meta, _) do
     :ocp.finish_span()
   end
 
-  def handle_event([:phoenix, :router_dispatch, :start], measurements, meta, _prefix) do
+  def handle_event([:phoenix, :router_dispatch, :start], measurements, meta, _) do
     route_info =
       case meta do
         %{plug: Phoenix.LiveView.Plug, phoenix_live_view: {module, action}} ->
@@ -98,9 +100,8 @@ defmodule OpencensusPhoenix.Telemetry do
         action -> inspect(action)
       end
 
-    :ocp.with_child_span("request.#{route_info.module}.#{action}")
-
-    :ocp.put_attributes(
+    :ocp.with_child_span(
+      "request.#{route_info.module}.#{action}",
       Map.merge(route_info, %{
         http_method: meta.conn.method,
         route: meta.route
@@ -108,9 +109,14 @@ defmodule OpencensusPhoenix.Telemetry do
     )
   end
 
-  def handle_event(event, measurements, meta, prefix) do
-    if prefix ++ [:stop] == event do
-      :ocp.finish_span()
-    end
+  def handle_event([:phoenix, :router_dispatch, :stop], measurements, meta, _) do
+    :ocp.put_attribute("http_status", meta.conn.status)
+    :ocp.finish_span()
+  end
+
+  def handle_event([:phoenix, :router_dispatch, failure], measurements, meta, _)
+      when failure in [:exception, :failure] do
+    :ocp.put_attribute("http_status", 500)
+    :ocp.finish_span()
   end
 end

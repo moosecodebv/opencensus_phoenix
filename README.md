@@ -18,7 +18,7 @@ end
 # lib/my_app/application.ex, add this line using event_prefix from above:
 def start(_type, _args) do
   ...
-  OpencensusPhoenix.Telemetry.setup([:my_app, :endpoint])
+  OpencensusPhoenix.Telemetry.setup()
   ...
 end
 ```
