@@ -91,6 +91,7 @@ defmodule OpencensusPhoenix.Telemetry do
           %{module: module, action: action}
       end
 
+    IO.inspect(route_info, label: "ROUTE_INFO")
     :ocp.with_child_span("request.#{route_info.module}.#{route_info.action}")
 
     :ocp.put_attributes(
