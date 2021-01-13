@@ -27,8 +27,8 @@ defmodule OpencensusPhoenix.Telemetry do
   end
 
   def handle_event([:phoenix, :live_view, :mount, :start], measurements, meta, _) do
-    "Elixir." <> view = to_string(meta.socket.view)
-    "Elixir." <> root_view = to_string(meta.socket.root_view)
+    view = module_to_string(meta.socket.view)
+    root_view = module_to_string(meta.socket.root_view)
 
     :ocp.with_child_span(
       "live_view.#{view}.mount",
@@ -46,8 +46,8 @@ defmodule OpencensusPhoenix.Telemetry do
   end
 
   def handle_event([:phoenix, :live_view, :handle_event, :start], measurements, meta, _) do
-    "Elixir." <> view = to_string(meta.socket.view)
-    "Elixir." <> root_view = to_string(meta.socket.root_view)
+    view = module_to_string(meta.socket.view)
+    root_view = module_to_string(meta.socket.root_view)
     :ocp.with_child_span("live_view.#{view}.handle_event.#{meta.event}")
 
     :ocp.put_attributes(%{
@@ -63,9 +63,9 @@ defmodule OpencensusPhoenix.Telemetry do
   end
 
   def handle_event([:phoenix, :live_component, :handle_event, :start], meas, meta, _) do
-    "Elixir." <> component = to_string(meta.component)
-    "Elixir." <> view = to_string(meta.socket.view)
-    "Elixir." <> root_view = to_string(meta.socket.root_view)
+    component = module_to_string(meta.component)
+    view = module_to_string(meta.socket.view)
+    root_view = module_to_string(meta.socket.root_view)
     :ocp.with_child_span("live_component.#{component}.handle_event.#{meta.event}")
 
     :ocp.put_attributes(%{
@@ -85,11 +85,11 @@ defmodule OpencensusPhoenix.Telemetry do
     route_info =
       case meta do
         %{plug: Phoenix.LiveView.Plug, phoenix_live_view: {module, action}} ->
-          "Elixir." <> view = to_string(module)
+          view = module_to_string(module)
           %{module: view, action: action, view: view, root_view: view}
 
         %{plug: module, plug_opts: action} ->
-          "Elixir." <> module = to_string(module)
+          module = module_to_string(module)
           %{module: module, action: action}
       end
 
@@ -118,5 +118,12 @@ defmodule OpencensusPhoenix.Telemetry do
       when failure in [:exception, :failure] do
     :ocp.put_attribute("http_status", 500)
     :ocp.finish_span()
+  end
+
+  defp module_to_string(module) when is_atom(module) do
+    case to_string(module) do
+      "Elixir." <> name -> name
+      erlang_module -> ":#{erlang_module}"
+    end
   end
 end
