@@ -11,7 +11,7 @@ defmodule OpencensusPhoenix.Telemetry do
   def setup() do
     %{
       "phoenix router_dispatch start" => [:phoenix, :router_dispatch, :start],
-      "phoenix router_dispatch stop" => [:phoenix, :router_dispatch, :stop],
+      "phoenix endpoint stop" => [:phoenix, :endpoint, :stop],
       "phoenix router_dispatch exception" => [:phoenix, :router_dispatch, :exception],
       "phoenix router_dispatch exception" => [:phoenix, :router_dispatch, :failure],
       "phoenix live view mount start" => [:phoenix, :live_view, :mount, :start],
@@ -109,7 +109,7 @@ defmodule OpencensusPhoenix.Telemetry do
     )
   end
 
-  def handle_event([:phoenix, :router_dispatch, :stop], measurements, meta, _) do
+  def handle_event([:phoenix, :endpoint, :stop], measurements, meta, _) do
     :ocp.put_attribute("http_status", meta.conn.status)
     :ocp.finish_span()
   end
